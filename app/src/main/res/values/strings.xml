@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Popular Movies</string>
+    <string name="error_message">Erro ao buscar as informações, tente novamente mais tarde.</string>
+</resources>
