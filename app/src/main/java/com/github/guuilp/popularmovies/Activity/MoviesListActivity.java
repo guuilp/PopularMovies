@@ -1,15 +1,12 @@
 package com.github.guuilp.popularmovies.Activity;
 
-import android.content.Context;
+import android.content.Intent;
 import android.content.res.Resources;
-import android.net.Network;
 import android.os.AsyncTask;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -24,25 +21,24 @@ import com.github.guuilp.popularmovies.R;
 import com.github.guuilp.popularmovies.Util.NetworkUtils;
 import com.google.gson.Gson;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Scanner;
 
-public class MainActivity extends AppCompatActivity implements PopularMoviesAdapter.PopularMoviesOnClickHandler{
+public class MoviesListActivity extends AppCompatActivity implements PopularMoviesAdapter.PopularMoviesOnClickHandler{
 
     private RecyclerView mRecyclerView;
     private PopularMoviesAdapter mPopularMoviesAdapter;
     private TextView mErrorMessageDisplay;
     private ProgressBar mLoadingIndicator;
 
-    private static final String TAG = MainActivity.class.getSimpleName();
+    private static final String TAG = MoviesListActivity.class.getSimpleName();
+
+    private Movies moviesData = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+
+        setContentView(R.layout.activity_movies_list);
         Resources rs = getResources();
         int numColumns = rs.getInteger(R.integer.list_columns);
         mRecyclerView = (RecyclerView) findViewById(R.id.recycler_view_popular_movies);
@@ -54,10 +50,23 @@ public class MainActivity extends AppCompatActivity implements PopularMoviesAdap
         mRecyclerView.setLayoutManager(layoutManager);
         mRecyclerView.setHasFixedSize(true);
 
-        mPopularMoviesAdapter = new PopularMoviesAdapter(this, this);
+        if(mPopularMoviesAdapter == null)
+            mPopularMoviesAdapter = new PopularMoviesAdapter(this, this);
+
         mRecyclerView.setAdapter(mPopularMoviesAdapter);
 
-        loadMoviesData(NetworkUtils.POPULAR_SORT);
+        if(savedInstanceState == null || !savedInstanceState.containsKey("movies")){
+            loadMoviesData(NetworkUtils.POPULAR_SORT);
+        } else {
+            moviesData = savedInstanceState.getParcelable("movies");
+            mPopularMoviesAdapter.setMovieList(moviesData);
+        }
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        outState.putParcelable("movies", moviesData);
+        super.onSaveInstanceState(outState);
     }
 
     private void loadMoviesData(String sortBy){
@@ -68,7 +77,9 @@ public class MainActivity extends AppCompatActivity implements PopularMoviesAdap
 
     @Override
     public void onListItemClick(Result result) {
-        Toast.makeText(MainActivity.this, "Implementar a segunda tela", Toast.LENGTH_LONG).show();
+        Intent intent = new Intent(MoviesListActivity.this, MovieDetailActivity.class);
+        intent.putExtra("movie", result);
+        startActivity(intent);
     }
 
     private void showMoviesDataView() {
@@ -121,13 +132,12 @@ public class MainActivity extends AppCompatActivity implements PopularMoviesAdap
 
         @Override
         protected void onPostExecute(String result) {
-            Log.v(TAG, "onPostExecute");
             mLoadingIndicator.setVisibility(View.INVISIBLE);
             if(result != null){
                 showMoviesDataView();
                 Gson gson = new Gson();
-                Movies data = gson.fromJson(result, Movies.class);
-                mPopularMoviesAdapter.setMovieList(data);
+                moviesData = gson.fromJson(result, Movies.class);
+                mPopularMoviesAdapter.setMovieList(moviesData);
             } else {
                 showErrorMessage();
             }
