@@ -2,13 +2,11 @@ package com.github.guuilp.popularmovies.Adapter;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
-import com.github.guuilp.popularmovies.Activity.MainActivity;
 import com.github.guuilp.popularmovies.Model.Movies;
 import com.github.guuilp.popularmovies.Model.Result;
 import com.github.guuilp.popularmovies.R;
@@ -61,7 +59,7 @@ public class PopularMoviesAdapter extends RecyclerView.Adapter<PopularMoviesAdap
 
     public void setMovieList(Movies movieList) {
         this.movieList = movieList;
-        this.notifyDataSetChanged();
+        notifyDataSetChanged();
     }
 
     public class PopularMoviesViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
