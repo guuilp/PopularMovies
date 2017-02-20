@@ -1,4 +1,6 @@
 <resources>
     <string name="app_name">Popular Movies</string>
     <string name="error_message">Erro ao buscar as informações, tente novamente mais tarde.</string>
+    <string name="rating">Rating</string>
+    <string name="release_date">Release Date</string>
 </resources>
