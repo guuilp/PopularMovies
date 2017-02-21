@@ -42,18 +42,17 @@ public class MovieDetailActivity extends AppCompatActivity{
         if(this.getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT){
             String url = NetworkUtils.buildCoverUrl("w500", result.getPosterPath());
             Picasso.with(this).load(url).into(mMoviePoster);
-//
+
             url = NetworkUtils.buildCoverUrl("w500", result.getBackdropPath());
             Picasso.with(this).load(url).into(mMovieBanner);
         } else {
             String url = NetworkUtils.buildCoverUrl("w500", result.getPosterPath());
             Picasso.with(this).load(url).into(mMoviePoster);
-//
+
             url = NetworkUtils.buildCoverUrl("w780", result.getBackdropPath());
             Picasso.with(this).load(url).into(mMovieBanner);
         }
 
-//
         mOriginalTitle.setText(result.getTitle());
         mPlotSynopsis.setText(result.getOverview());
         mUserRating.setText(String.valueOf(result.getVoteAverage()) + "/10");
