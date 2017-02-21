@@ -1,6 +1,12 @@
 <resources>
     <string name="app_name">Popular Movies</string>
-    <string name="error_message">Erro ao buscar as informações, tente novamente mais tarde.</string>
+    <string name="error_message">Error while getting the data. Try again later.</string>
     <string name="rating">Rating</string>
     <string name="release_date">Release Date</string>
+    <string name="overview_dummy">The quiet life of a terrier named Max is upended when his owner takes in Duke, a stray whom Max instantly dislikes.</string>
+    <string name="rating_label">Rating</string>
+    <string name="rating_dummy">6.8/10</string>
+    <string name="release_date_dummy">2016-06-18</string>
+    <string name="release_date_label">Release Date</string>
+    <string name="title_dummy">The Secret Life of Pets</string>
 </resources>
