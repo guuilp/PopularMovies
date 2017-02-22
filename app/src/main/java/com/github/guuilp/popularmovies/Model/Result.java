@@ -1,20 +1,18 @@
 
-package com.github.guuilp.popularmovies.Model;
+package com.github.guuilp.popularmovies.model;
 
 import android.os.Parcel;
 import android.os.Parcelable;
 
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import java.util.List;
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 public class Result implements Parcelable {
+
+    public static final String PARCELABLE_KEY = "movie";
 
     @SerializedName("poster_path")
     @Expose

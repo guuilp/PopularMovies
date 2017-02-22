@@ -1,7 +1,6 @@
-package com.github.guuilp.popularmovies.Util;
+package com.github.guuilp.popularmovies.util;
 
 import android.net.Uri;
-import android.util.Log;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,20 +24,21 @@ public final class NetworkUtils {
 
     private static final String API_KEY = "";
 
-    public static final String POPULAR_SORT = "Popular";
-    public static final String TOP_RATED_SORT = "Top Rated";
+    private static final String DELIMITER = "\\A";
 
-    public static URL buildUrl(String sortBy){
+    private static final String QUERY_PARAMETER_KEY = "api_key";
+
+    public static URL buildUrl(Sort sort){
         String baseURl;
 
-        if(sortBy.equals("Popular")){
+        if(sort == Sort.POPULAR){
             baseURl = POPULAR_URL;
         } else {
             baseURl = TOP_RATED_URL;
         }
 
         Uri builtUri = Uri.parse(baseURl).buildUpon()
-                .appendQueryParameter("api_key", API_KEY)
+                .appendQueryParameter(QUERY_PARAMETER_KEY, API_KEY)
                 .build();
 
         URL url = null;
@@ -70,7 +70,7 @@ public final class NetworkUtils {
             InputStream in = urlConn.getInputStream();
 
             Scanner scanner = new Scanner(in);
-            scanner.useDelimiter("\\A");
+            scanner.useDelimiter(DELIMITER);
 
             boolean hasInput = scanner.hasNext();
 

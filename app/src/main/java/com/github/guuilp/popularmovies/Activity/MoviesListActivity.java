@@ -1,8 +1,10 @@
-package com.github.guuilp.popularmovies.Activity;
+package com.github.guuilp.popularmovies.activity;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
-import android.os.AsyncTask;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
@@ -12,18 +14,17 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import com.github.guuilp.popularmovies.Adapter.PopularMoviesAdapter;
-import com.github.guuilp.popularmovies.Model.Movies;
-import com.github.guuilp.popularmovies.Model.Result;
 import com.github.guuilp.popularmovies.R;
-import com.github.guuilp.popularmovies.Util.NetworkUtils;
+import com.github.guuilp.popularmovies.adapter.PopularMoviesAdapter;
+import com.github.guuilp.popularmovies.model.Movies;
+import com.github.guuilp.popularmovies.model.Result;
+import com.github.guuilp.popularmovies.service.AsyncTaskDelegate;
+import com.github.guuilp.popularmovies.service.MovieService;
+import com.github.guuilp.popularmovies.util.Sort;
 import com.google.gson.Gson;
 
-import java.net.URL;
-
-public class MoviesListActivity extends AppCompatActivity implements PopularMoviesAdapter.PopularMoviesOnClickHandler{
+public class MoviesListActivity extends AppCompatActivity implements PopularMoviesAdapter.PopularMoviesOnClickHandler, AsyncTaskDelegate {
 
     private RecyclerView mRecyclerView;
     private PopularMoviesAdapter mPopularMoviesAdapter;
@@ -37,8 +38,8 @@ public class MoviesListActivity extends AppCompatActivity implements PopularMovi
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_movies_list);
+
         Resources rs = getResources();
         int numColumns = rs.getInteger(R.integer.list_columns);
         mRecyclerView = (RecyclerView) findViewById(R.id.recycler_view_popular_movies);
@@ -55,30 +56,33 @@ public class MoviesListActivity extends AppCompatActivity implements PopularMovi
 
         mRecyclerView.setAdapter(mPopularMoviesAdapter);
 
-        if(savedInstanceState == null || !savedInstanceState.containsKey("movies")){
-            loadMoviesData(NetworkUtils.POPULAR_SORT);
+        if(savedInstanceState == null || !savedInstanceState.containsKey(Result.PARCELABLE_KEY)){
+            loadMoviesData(Sort.POPULAR);
         } else {
-            moviesData = savedInstanceState.getParcelable("movies");
+            moviesData = savedInstanceState.getParcelable(Result.PARCELABLE_KEY);
             mPopularMoviesAdapter.setMovieList(moviesData);
         }
     }
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
-        outState.putParcelable("movies", moviesData);
+        outState.putParcelable(Result.PARCELABLE_KEY, moviesData);
         super.onSaveInstanceState(outState);
     }
 
-    private void loadMoviesData(String sortBy){
-        showMoviesDataView();
-
-        new FetchMoviesTask().execute(sortBy);
+    private void loadMoviesData(Sort sortBy){
+        if (isOnline()){
+            showMoviesDataView();
+            new MovieService(this).execute(String.valueOf(sortBy));
+        } else {
+            showErrorMessage(getString(R.string.connection_error_message));
+        }
     }
 
     @Override
     public void onListItemClick(Result result) {
         Intent intent = new Intent(MoviesListActivity.this, MovieDetailActivity.class);
-        intent.putExtra("movie", result);
+        intent.putExtra(Result.PARCELABLE_KEY, result);
         startActivity(intent);
     }
 
@@ -87,9 +91,17 @@ public class MoviesListActivity extends AppCompatActivity implements PopularMovi
         mRecyclerView.setVisibility(View.VISIBLE);
     }
 
-    private void showErrorMessage() {
+    private void showErrorMessage(String errorMessage) {
         mRecyclerView.setVisibility(View.INVISIBLE);
+        mErrorMessageDisplay.setText(errorMessage);
         mErrorMessageDisplay.setVisibility(View.VISIBLE);
+    }
+
+    //Got this method here: http://stackoverflow.com/a/4009133/3394588
+    private boolean isOnline(){
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        return netInfo != null && netInfo.isConnectedOrConnecting();
     }
 
     @Override
@@ -101,46 +113,39 @@ public class MoviesListActivity extends AppCompatActivity implements PopularMovi
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int itemId = item.getItemId();
+
         if (itemId == R.id.sort_popular){
             mPopularMoviesAdapter.setMovieList(null);
-            loadMoviesData(NetworkUtils.POPULAR_SORT);
+            loadMoviesData(Sort.POPULAR);
             return true;
         }
+
         if(itemId == R.id.sort_top_rated) {
             mPopularMoviesAdapter.setMovieList(null);
-            loadMoviesData(NetworkUtils.TOP_RATED_SORT);
+            loadMoviesData(Sort.TOP_RATED);
             return true;
         }
+
         return super.onOptionsItemSelected(item);
     }
 
-    public class FetchMoviesTask extends AsyncTask<String, Void, String> {
+    @Override
+    public void processStart() {
+        mLoadingIndicator.setVisibility(View.VISIBLE);
+    }
 
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            mLoadingIndicator.setVisibility(View.VISIBLE);
-        }
+    @Override
+    public void processFinish(String result) {
+        mLoadingIndicator.setVisibility(View.INVISIBLE);
+        if(result != null){
+            showMoviesDataView();
 
-        @Override
-        protected String doInBackground(String... params) {
-            String sortBy = params[0];
-            URL moviesUrl = NetworkUtils.buildUrl(sortBy);
+            Gson gson = new Gson();
+            moviesData = gson.fromJson(result, Movies.class);
 
-            return NetworkUtils.returnDataFromWebService(moviesUrl);
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            mLoadingIndicator.setVisibility(View.INVISIBLE);
-            if(result != null){
-                showMoviesDataView();
-                Gson gson = new Gson();
-                moviesData = gson.fromJson(result, Movies.class);
-                mPopularMoviesAdapter.setMovieList(moviesData);
-            } else {
-                showErrorMessage();
-            }
+            mPopularMoviesAdapter.setMovieList(moviesData);
+        } else {
+            showErrorMessage(getString(R.string.error_message));
         }
     }
 }

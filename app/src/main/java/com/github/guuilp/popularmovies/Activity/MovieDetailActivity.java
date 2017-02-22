@@ -1,22 +1,22 @@
-package com.github.guuilp.popularmovies.Activity;
+package com.github.guuilp.popularmovies.activity;
 
-import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.github.guuilp.popularmovies.Model.Result;
+import com.github.guuilp.popularmovies.model.Result;
 import com.github.guuilp.popularmovies.R;
-import com.github.guuilp.popularmovies.Util.NetworkUtils;
+import com.github.guuilp.popularmovies.util.ImageSize;
+import com.github.guuilp.popularmovies.util.NetworkUtils;
 import com.squareup.picasso.Picasso;
-
-import org.w3c.dom.Text;
 
 public class MovieDetailActivity extends AppCompatActivity{
 
     private static final String TAG = MovieDetailActivity.class.getSimpleName();
+
+    private Result movie;
 
     private ImageView mMoviePoster;
     private ImageView mMovieBanner;
@@ -38,31 +38,36 @@ public class MovieDetailActivity extends AppCompatActivity{
         mUserRating = (TextView) findViewById(R.id.tv_movie_rating);
         mReleaseDate = (TextView) findViewById(R.id.tv_movie_release_date);
 
-        Result result = getIntent().getExtras().getParcelable("movie");
+        Bundle bundle = getIntent().getExtras();
+
+        if (bundle != null){
+            movie = bundle.getParcelable(Result.PARCELABLE_KEY);
+        }
+
         if(this.getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT){
-            String url = NetworkUtils.buildCoverUrl("w500", result.getPosterPath());
+            String url = NetworkUtils.buildCoverUrl(ImageSize.DEFAULT.toString(), movie.getPosterPath());
             Picasso.with(this).load(url).into(mMoviePoster);
 
-            url = NetworkUtils.buildCoverUrl("w500", result.getBackdropPath());
+            url = NetworkUtils.buildCoverUrl(ImageSize.DEFAULT.toString(), movie.getBackdropPath());
             Picasso.with(this).load(url).into(mMovieBanner);
         } else {
-            String url = NetworkUtils.buildCoverUrl("w500", result.getPosterPath());
+            String url = NetworkUtils.buildCoverUrl(ImageSize.DEFAULT.toString(), movie.getPosterPath());
             Picasso.with(this).load(url).into(mMoviePoster);
 
-            url = NetworkUtils.buildCoverUrl("w780", result.getBackdropPath());
+            url = NetworkUtils.buildCoverUrl(ImageSize.A_LITTLE_BIGGER.toString(), movie.getBackdropPath());
             Picasso.with(this).load(url).into(mMovieBanner);
         }
 
-        mOriginalTitle.setText(result.getTitle());
-        mPlotSynopsis.setText(result.getOverview());
-        mUserRating.setText(String.valueOf(result.getVoteAverage()) + "/10");
-        mReleaseDate.setText(result.getReleaseDate());
+        mOriginalTitle.setText(movie.getTitle());
+        mPlotSynopsis.setText(movie.getOverview());
+        mUserRating.setText(String.valueOf(movie.getVoteAverage()) + getString(R.string.total_rating_movie));
+        mReleaseDate.setText(movie.getReleaseDate());
 
     }
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
-        outState.putParcelable("movie", null);
+        outState.putParcelable(Result.PARCELABLE_KEY, null);
         super.onSaveInstanceState(outState);
     }
 

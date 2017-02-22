@@ -1,4 +1,4 @@
-package com.github.guuilp.popularmovies.Adapter;
+package com.github.guuilp.popularmovies.adapter;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
@@ -7,10 +7,11 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
-import com.github.guuilp.popularmovies.Model.Movies;
-import com.github.guuilp.popularmovies.Model.Result;
+import com.github.guuilp.popularmovies.model.Movies;
+import com.github.guuilp.popularmovies.model.Result;
 import com.github.guuilp.popularmovies.R;
-import com.github.guuilp.popularmovies.Util.NetworkUtils;
+import com.github.guuilp.popularmovies.util.ImageSize;
+import com.github.guuilp.popularmovies.util.NetworkUtils;
 import com.squareup.picasso.Picasso;
 
 /**
@@ -46,7 +47,7 @@ public class PopularMoviesAdapter extends RecyclerView.Adapter<PopularMoviesAdap
     @Override
     public void onBindViewHolder(PopularMoviesViewHolder holder, int position) {
         Result result = movieList.getResults().get(position);
-        String url = NetworkUtils.buildCoverUrl("w185", result.getPosterPath());
+        String url = NetworkUtils.buildCoverUrl(ImageSize.SMALL.toString(), result.getPosterPath());
         Picasso.with(context).load(url).into(holder.ivCoverMovie);
     }
 
