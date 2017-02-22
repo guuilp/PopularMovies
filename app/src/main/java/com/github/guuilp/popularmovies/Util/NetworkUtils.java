@@ -2,6 +2,8 @@ package com.github.guuilp.popularmovies.util;
 
 import android.net.Uri;
 
+import com.github.guuilp.popularmovies.BuildConfig;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -21,9 +23,7 @@ public final class NetworkUtils {
     private static final String TOP_RATED_URL = "http://api.themoviedb.org/3/movie/top_rated";
 
     private static final String COVER_IMAGE_URL = "http://image.tmdb.org/t/p/";
-
-    private static final String API_KEY = "";
-
+    
     private static final String DELIMITER = "\\A";
 
     private static final String QUERY_PARAMETER_KEY = "api_key";
@@ -38,7 +38,7 @@ public final class NetworkUtils {
         }
 
         Uri builtUri = Uri.parse(baseURl).buildUpon()
-                .appendQueryParameter(QUERY_PARAMETER_KEY, API_KEY)
+                .appendQueryParameter(QUERY_PARAMETER_KEY, BuildConfig.THE_MOVIE_DB_API_TOKEN)
                 .build();
 
         URL url = null;
