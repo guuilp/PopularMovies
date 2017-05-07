@@ -11,4 +11,6 @@
     <string name="release_date_label">Release Date</string>
     <string name="title_dummy">The Secret Life of Pets</string>
     <string name="total_rating_movie">/10</string>
+    <string name="poster_transition">moviePosterTransition</string>
+    <string name="content_authority">com.github.guuilp.popularmovies</string>
 </resources>

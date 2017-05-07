@@ -6,32 +6,40 @@ import android.content.res.Resources;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.support.v4.app.ActivityOptionsCompat;
+import android.support.v4.view.ViewCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import com.github.guuilp.popularmovies.BuildConfig;
 import com.github.guuilp.popularmovies.R;
-import com.github.guuilp.popularmovies.adapter.PopularMoviesAdapter;
+import com.github.guuilp.popularmovies.adapter.MoviesAdapter;
 import com.github.guuilp.popularmovies.model.Movies;
-import com.github.guuilp.popularmovies.model.Result;
-import com.github.guuilp.popularmovies.service.AsyncTaskDelegate;
-import com.github.guuilp.popularmovies.service.MovieService;
+import com.github.guuilp.popularmovies.service.TheMovieDBService;
 import com.github.guuilp.popularmovies.util.Sort;
-import com.google.gson.Gson;
 
-public class MoviesListActivity extends AppCompatActivity implements PopularMoviesAdapter.PopularMoviesOnClickHandler, AsyncTaskDelegate {
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+public class MoviesListActivity extends AppCompatActivity implements MoviesAdapter.PopularMoviesOnClickHandler {
 
     private RecyclerView mRecyclerView;
-    private PopularMoviesAdapter mPopularMoviesAdapter;
+    private MoviesAdapter mMoviesAdapter;
     private TextView mErrorMessageDisplay;
     private ProgressBar mLoadingIndicator;
 
     private static final String TAG = MoviesListActivity.class.getSimpleName();
+
+    public static final String EXTRA_MOVIE_ITEM = "movie_image_url";
+    public static final String EXTRA_MOVIE_IMAGE_TRANSITION_NAME = "movie_image_transition_name";
 
     private Movies moviesData = null;
 
@@ -51,39 +59,54 @@ public class MoviesListActivity extends AppCompatActivity implements PopularMovi
         mRecyclerView.setLayoutManager(layoutManager);
         mRecyclerView.setHasFixedSize(true);
 
-        if(mPopularMoviesAdapter == null)
-            mPopularMoviesAdapter = new PopularMoviesAdapter(this, this);
+        if(mMoviesAdapter == null)
+            mMoviesAdapter = new MoviesAdapter(this, this);
 
-        mRecyclerView.setAdapter(mPopularMoviesAdapter);
+        mRecyclerView.setAdapter(mMoviesAdapter);
 
-        if(savedInstanceState == null || !savedInstanceState.containsKey(Result.PARCELABLE_KEY)){
+        if(savedInstanceState == null || !savedInstanceState.containsKey(Movies.Result.PARCELABLE_KEY)){
             loadMoviesData(Sort.POPULAR);
         } else {
-            moviesData = savedInstanceState.getParcelable(Result.PARCELABLE_KEY);
-            mPopularMoviesAdapter.setMovieList(moviesData);
+            moviesData = savedInstanceState.getParcelable(Movies.Result.PARCELABLE_KEY);
+            mMoviesAdapter.setMovieList(moviesData);
         }
     }
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
-        outState.putParcelable(Result.PARCELABLE_KEY, moviesData);
+        outState.putParcelable(Movies.Result.PARCELABLE_KEY, moviesData);
         super.onSaveInstanceState(outState);
     }
 
     private void loadMoviesData(Sort sortBy){
         if (isOnline()){
             showMoviesDataView();
-            new MovieService(this).execute(String.valueOf(sortBy));
+            TheMovieDBService service = TheMovieDBService.retrofit.create(TheMovieDBService.class);
+
+            mLoadingIndicator.setVisibility(View.VISIBLE);
+
+            if(sortBy == Sort.POPULAR){
+                processPopularMovies(service);
+            } else {
+                processTopRatedMovies(service);
+            }
         } else {
             showErrorMessage(getString(R.string.connection_error_message));
         }
     }
 
     @Override
-    public void onListItemClick(Result result) {
+    public void onListItemClick(Movies.Result result, ImageView shareImageView) {
         Intent intent = new Intent(MoviesListActivity.this, MovieDetailActivity.class);
-        intent.putExtra(Result.PARCELABLE_KEY, result);
-        startActivity(intent);
+        intent.putExtra(Movies.Result.PARCELABLE_KEY, result);
+        intent.putExtra(EXTRA_MOVIE_IMAGE_TRANSITION_NAME, ViewCompat.getTransitionName(shareImageView));
+
+        ActivityOptionsCompat options = ActivityOptionsCompat.makeSceneTransitionAnimation(
+                this,
+                shareImageView,
+                ViewCompat.getTransitionName(shareImageView));
+
+        startActivity(intent, options.toBundle());
     }
 
     private void showMoviesDataView() {
@@ -115,13 +138,13 @@ public class MoviesListActivity extends AppCompatActivity implements PopularMovi
         int itemId = item.getItemId();
 
         if (itemId == R.id.sort_popular){
-            mPopularMoviesAdapter.setMovieList(null);
+            mMoviesAdapter.setMovieList(null);
             loadMoviesData(Sort.POPULAR);
             return true;
         }
 
         if(itemId == R.id.sort_top_rated) {
-            mPopularMoviesAdapter.setMovieList(null);
+            mMoviesAdapter.setMovieList(null);
             loadMoviesData(Sort.TOP_RATED);
             return true;
         }
@@ -129,23 +152,54 @@ public class MoviesListActivity extends AppCompatActivity implements PopularMovi
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    public void processStart() {
-        mLoadingIndicator.setVisibility(View.VISIBLE);
+    private void processTopRatedMovies(TheMovieDBService service) {
+        Call<Movies> topRatedMovies = service.getTopRatedMovies(BuildConfig.THE_MOVIE_DB_API_TOKEN);
+
+        topRatedMovies.enqueue(new Callback<Movies>() {
+            @Override
+            public void onResponse(Call<Movies> call, Response<Movies> response) {
+                mLoadingIndicator.setVisibility(View.INVISIBLE);
+
+                if(response != null){
+                    showMoviesDataView();
+
+                    mMoviesAdapter.setMovieList(response.body());
+                } else {
+                    showErrorMessage(getString(R.string.error_message));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Movies> call, Throwable t) {
+                mLoadingIndicator.setVisibility(View.INVISIBLE);
+                showErrorMessage(getString(R.string.error_message));
+            }
+        });
     }
 
-    @Override
-    public void processFinish(String result) {
-        mLoadingIndicator.setVisibility(View.INVISIBLE);
-        if(result != null){
-            showMoviesDataView();
+    private void processPopularMovies(TheMovieDBService service) {
+        Call<Movies> popularMovies = service.getPopularMovies(BuildConfig.THE_MOVIE_DB_API_TOKEN);
 
-            Gson gson = new Gson();
-            moviesData = gson.fromJson(result, Movies.class);
+        popularMovies.enqueue(new Callback<Movies>() {
 
-            mPopularMoviesAdapter.setMovieList(moviesData);
-        } else {
-            showErrorMessage(getString(R.string.error_message));
-        }
+            @Override
+            public void onResponse(Call<Movies> call, Response<Movies> response) {
+                mLoadingIndicator.setVisibility(View.INVISIBLE);
+
+                if(response != null){
+                    showMoviesDataView();
+
+                    mMoviesAdapter.setMovieList(response.body());
+                } else {
+                    showErrorMessage(getString(R.string.error_message));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Movies> call, Throwable t) {
+                mLoadingIndicator.setVisibility(View.INVISIBLE);
+                showErrorMessage(getString(R.string.error_message));
+            }
+        });
     }
 }
