@@ -38,7 +38,6 @@ public class MoviesListActivity extends AppCompatActivity implements MoviesAdapt
 
     private static final String TAG = MoviesListActivity.class.getSimpleName();
 
-    public static final String EXTRA_MOVIE_ITEM = "movie_image_url";
     public static final String EXTRA_MOVIE_IMAGE_TRANSITION_NAME = "movie_image_transition_name";
 
     private Movies moviesData = null;

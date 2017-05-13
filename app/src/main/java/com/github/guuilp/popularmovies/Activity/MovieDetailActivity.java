@@ -1,32 +1,46 @@
 package com.github.guuilp.popularmovies.activity;
 
+import android.content.ContentUris;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.database.Cursor;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.github.guuilp.popularmovies.BuildConfig;
 import com.github.guuilp.popularmovies.R;
 import com.github.guuilp.popularmovies.adapter.VideoAdapter;
+import com.github.guuilp.popularmovies.data.MoviesContract;
+import com.github.guuilp.popularmovies.data.ReviewsContract;
+import com.github.guuilp.popularmovies.data.VideosContract;
 import com.github.guuilp.popularmovies.model.Movies;
 import com.github.guuilp.popularmovies.model.Reviews;
 import com.github.guuilp.popularmovies.model.Videos;
 import com.github.guuilp.popularmovies.service.TheMovieDBService;
 import com.github.guuilp.popularmovies.util.ImageSize;
 import com.github.guuilp.popularmovies.util.NetworkUtils;
-import com.github.guuilp.popularmovies.util.Sort;
 import com.roughike.swipeselector.SwipeItem;
 import com.roughike.swipeselector.SwipeSelector;
 import com.squareup.picasso.Picasso;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,8 +62,15 @@ public class MovieDetailActivity extends AppCompatActivity {
     private TextView mReleaseDate;
     private ListView mTrailers;
     private SwipeSelector mReviews;
+    private Button mFavoritar;
+    private Button mBuscar;
+    private Menu mOptionsMenu;
 
-    private List<Videos.Result> twoVideosData = null;
+    private List<Videos.Result> reducedVideosData = null;
+    List<Reviews.Result> reviews = null;
+
+    private String[] projection = {MoviesContract.MoviesEntry._ID};
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,9 +88,10 @@ public class MovieDetailActivity extends AppCompatActivity {
         mReleaseDate = (TextView) findViewById(R.id.tv_movie_release_date);
         mTrailers = (ListView) findViewById(R.id.lv_trailers);
         mReviews = (SwipeSelector) findViewById(R.id.ssReview);
+        mFavoritar = (Button) findViewById(R.id.btFavoritar);
+        mBuscar = (Button) findViewById(R.id.btBuscar);
 
         Bundle bundle = getIntent().getExtras();
-
 
         if (bundle != null){
             movie = bundle.getParcelable(Movies.Result.PARCELABLE_KEY);
@@ -97,7 +119,7 @@ public class MovieDetailActivity extends AppCompatActivity {
                         }
                     });
 
-            url = NetworkUtils.buildCoverUrl(ImageSize.DEFAULT.toString(), movie.getBackdropPath());
+            url = NetworkUtils.buildCoverUrl(ImageSize.A_LITTLE_BIGGER.toString(), movie.getBackdropPath());
             Picasso.with(this).load(url).into(mMovieBanner);
         } else {
             String url = NetworkUtils.buildCoverUrl(ImageSize.DEFAULT.toString(), movie.getPosterPath());
@@ -115,6 +137,7 @@ public class MovieDetailActivity extends AppCompatActivity {
                         public void onError() {
                             supportStartPostponedEnterTransition();
                         }
+
                     });
 
             url = NetworkUtils.buildCoverUrl(ImageSize.A_LITTLE_BIGGER.toString(), movie.getBackdropPath());
@@ -139,6 +162,67 @@ public class MovieDetailActivity extends AppCompatActivity {
         });
 
         processReviews(service);
+
+        mFavoritar.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+            getContentResolver().insert(MoviesContract.MoviesEntry.CONTENT_URI, moviesToContentValue(movie));
+            getContentResolver().bulkInsert(VideosContract.VideosEntry.CONTENT_URI, videosToContentValue());
+            getContentResolver().bulkInsert(ReviewsContract.ReviewsEntry.CONTENT_URI, reviewsToContentValue());
+            }
+        });
+
+        mBuscar.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Cursor query = getContentResolver().query(MoviesContract.MoviesEntry.CONTENT_URI, null, null, null, MoviesContract.MoviesEntry.COLUMN_ID);
+                query.moveToFirst();
+                int idMovie = query.getInt(query.getColumnIndex(MoviesContract.MoviesEntry.COLUMN_ID));
+                Toast.makeText(MovieDetailActivity.this, idMovie+"", Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.favorite_movie, menu);
+        String[] selectionArgs = {movie.getId().toString()};
+
+        Uri uri = ContentUris.withAppendedId(MoviesContract.MoviesEntry.CONTENT_URI, movie.getId());
+
+        Cursor query = getContentResolver().query(uri, projection, null, selectionArgs, null);
+        if (query.getCount() > 0){
+            menu.findItem(R.id.action_favorite).setIcon(R.drawable.ic_favorite_pink_24px);
+        }
+
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch(item.getItemId()){
+            case R.id.action_favorite:
+
+                if (item.getIcon().getConstantState().equals(ContextCompat.getDrawable(MovieDetailActivity.this, R.drawable.ic_favorite_pink_24px).getConstantState())){
+                    getContentResolver().delete(ContentUris.withAppendedId(MoviesContract.MoviesEntry.CONTENT_URI, movie.getId()), null, null);
+                    getContentResolver().delete(ContentUris.withAppendedId(VideosContract.VideosEntry.CONTENT_URI ,movie.getId()), null, null);
+                    getContentResolver().delete(ContentUris.withAppendedId(ReviewsContract.ReviewsEntry.CONTENT_URI, movie.getId()), null, null);
+
+                    item.setIcon(R.drawable.ic_favorite_white_24px);
+                } else {
+
+                    getContentResolver().insert(MoviesContract.MoviesEntry.CONTENT_URI, moviesToContentValue(movie));
+                    getContentResolver().bulkInsert(VideosContract.VideosEntry.CONTENT_URI, videosToContentValue());
+                    getContentResolver().bulkInsert(ReviewsContract.ReviewsEntry.CONTENT_URI, reviewsToContentValue());
+
+                    item.setIcon(R.drawable.ic_favorite_pink_24px);
+                }
+
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
     @Override
@@ -157,29 +241,26 @@ public class MovieDetailActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Reviews> call, Response<Reviews> response) {
 
-                List<Reviews.Result> reviews = response.body().getResults();
+                reviews = response.body().getResults();
 
                 if (reviews.size() > 0) {
 
-                    List<SwipeItem> listaSwipe = new ArrayList<SwipeItem>();
-
-                    int contador = 0;
-
                     SwipeItem[] swipeItems = new SwipeItem[reviews.size()];
 
-                    for (Reviews.Result review : reviews) {
+                    for(int i = 0; i < reviews.size(); i++){
+                        Reviews.Result review = reviews.get(i);
 
                         String reviewText = review.getContent();
 
                         String reviewText300 = null;
+
                         if (reviewText.length() > 300) {
                             reviewText300 = review.getContent().substring(0, Math.min(review.getContent().length(), 300)) + "...";
                         } else {
                             reviewText300 = reviewText;
                         }
 
-                        swipeItems[contador] = new SwipeItem(contador, "Review " + (contador + 1), reviewText300);
-                        contador++;
+                        swipeItems[i] = new SwipeItem(i, "Review " + (i + 1), reviewText300);
                     }
 
                     if (swipeItems.length > 0) {
@@ -208,16 +289,16 @@ public class MovieDetailActivity extends AppCompatActivity {
                 Videos videos = response.body();
 
                 if(videos != null) {
-                    twoVideosData = new ArrayList<>();
+                    reducedVideosData = new ArrayList<>();
 
                     if (videos.getResults().size() > 1) {
-                        twoVideosData.add(videos.getResults().get(0));
-                        twoVideosData.add(videos.getResults().get(1));
+                        reducedVideosData.add(videos.getResults().get(0));
+                        reducedVideosData.add(videos.getResults().get(1));
                     } else {
-                        twoVideosData.add(videos.getResults().get(0));
+                        reducedVideosData.add(videos.getResults().get(0));
                     }
 
-                    VideoAdapter videoAdapter = new VideoAdapter(twoVideosData, MovieDetailActivity.this);
+                    VideoAdapter videoAdapter = new VideoAdapter(reducedVideosData, MovieDetailActivity.this);
 
                     mTrailers.setAdapter(videoAdapter);
                 }
@@ -228,5 +309,78 @@ public class MovieDetailActivity extends AppCompatActivity {
                 Log.d(TAG, "Error while getting the YouTube videos.");
             }
         });
+    }
+
+    private ContentValues moviesToContentValue(Movies.Result movie){
+        ContentValues cvMovies = new ContentValues();
+
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_POSTER_IMAGE, bitmapToByteArray(mMoviePoster));
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_BACKDROP_IMAGE, bitmapToByteArray(mMovieBanner));
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_POSTER_PATH, movie.getPosterPath());
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ADULT, movie.getAdult() ? 1 : 0);
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_OVERVIEW, movie.getOverview());
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_RELEASE_DATE, movie.getReleaseDate());
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ID, movie.getId());
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ORIGINAL_TITLE, movie.getOriginalTitle());
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ORIGINAL_LANGUAGE, movie.getOriginalLanguage());
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_TITLE, movie.getTitle());
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_BACKDROP_PATH, movie.getBackdropPath());
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_POPULARITY, movie.getPopularity());
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_VOTECOUNT, movie.getVoteCount());
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_VIDEO, movie.getVideo() ? 1 : 0);
+        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_VOTE_AVERAGE, movie.getVoteAverage());
+
+        return cvMovies;
+    }
+
+    private ContentValues[] videosToContentValue(){
+        ContentValues[] cvVideos = new ContentValues[reducedVideosData.size()];
+
+
+        for(int i = 0; i < reducedVideosData.size(); i++){
+
+            ContentValues cvVideo = new ContentValues();
+
+            cvVideo.put(VideosContract.VideosEntry.COLUMN_ID, reducedVideosData.get(i).getId());
+            cvVideo.put(VideosContract.VideosEntry.COLUMN_MOVIE_ID, movie.getId());
+            cvVideo.put(VideosContract.VideosEntry.COLUMN_ISO6391, reducedVideosData.get(i).getIso6391());
+            cvVideo.put(VideosContract.VideosEntry.COLUMN_ISO31661, reducedVideosData.get(i).getIso31661());
+            cvVideo.put(VideosContract.VideosEntry.COLUMN_KEY, reducedVideosData.get(i).getKey());
+            cvVideo.put(VideosContract.VideosEntry.COLUMN_NAME, reducedVideosData.get(i).getName());
+            cvVideo.put(VideosContract.VideosEntry.COLUMN_SITE, reducedVideosData.get(i).getSite());
+            cvVideo.put(VideosContract.VideosEntry.COLUMN_SIZE, reducedVideosData.get(i).getSize());
+            cvVideo.put(VideosContract.VideosEntry.COLUMN_TYPE, reducedVideosData.get(i).getType());
+
+            cvVideos[i] = cvVideo;
+        }
+
+        return cvVideos;
+    }
+
+    private ContentValues[] reviewsToContentValue(){
+        ContentValues[] cvReviews = new ContentValues[reviews.size()];
+
+
+        for(int i = 0; i < reviews.size(); i++){
+
+            ContentValues cvReview = new ContentValues();
+            cvReview.put(ReviewsContract.ReviewsEntry.COLUMN_ID, reviews.get(i).getId());
+            cvReview.put(ReviewsContract.ReviewsEntry.COLUMN_MOVIE_ID, movie.getId());
+            cvReview.put(ReviewsContract.ReviewsEntry.COLUMN_AUTHOR, reviews.get(i).getAuthor());
+            cvReview.put(ReviewsContract.ReviewsEntry.COLUMN_CONTENT, reviews.get(i).getContent());
+            cvReview.put(ReviewsContract.ReviewsEntry.COLUMN_URL, reviews.get(i).getUrl());
+
+            cvReviews[i] = cvReview;
+        }
+
+        return cvReviews;
+    }
+
+    private byte[] bitmapToByteArray(ImageView imageView) {
+        final int lnth = ((BitmapDrawable) imageView.getDrawable()).getBitmap().getByteCount();
+
+        ByteBuffer dst= ByteBuffer.allocate(lnth);
+        ((BitmapDrawable) imageView.getDrawable()).getBitmap().copyPixelsToBuffer( dst);
+        return dst.array();
     }
 }
