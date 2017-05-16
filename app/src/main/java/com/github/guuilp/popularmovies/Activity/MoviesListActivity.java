@@ -1,16 +1,21 @@
 package com.github.guuilp.popularmovies.activity;
 
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.database.Cursor;
+import android.database.DatabaseUtils;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.support.v4.app.ActivityOptionsCompat;
 import android.support.v4.view.ViewCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -21,9 +26,14 @@ import android.widget.TextView;
 import com.github.guuilp.popularmovies.BuildConfig;
 import com.github.guuilp.popularmovies.R;
 import com.github.guuilp.popularmovies.adapter.MoviesAdapter;
+import com.github.guuilp.popularmovies.data.MoviesContract;
+import com.github.guuilp.popularmovies.handler.PopularMoviesQueryHandler;
 import com.github.guuilp.popularmovies.model.Movies;
 import com.github.guuilp.popularmovies.service.TheMovieDBService;
 import com.github.guuilp.popularmovies.util.Sort;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -40,7 +50,24 @@ public class MoviesListActivity extends AppCompatActivity implements MoviesAdapt
 
     public static final String EXTRA_MOVIE_IMAGE_TRANSITION_NAME = "movie_image_transition_name";
 
-    private Movies moviesData = null;
+    private List<Movies.Result> moviesData = null;
+
+    private String[] projection = {MoviesContract.MoviesEntry._ID,
+            MoviesContract.MoviesEntry.COLUMN_POSTER_IMAGE,
+            MoviesContract.MoviesEntry.COLUMN_BACKDROP_IMAGE,
+            MoviesContract.MoviesEntry.COLUMN_POSTER_PATH,
+            MoviesContract.MoviesEntry.COLUMN_ADULT,
+            MoviesContract.MoviesEntry.COLUMN_OVERVIEW,
+            MoviesContract.MoviesEntry.COLUMN_RELEASE_DATE,
+            MoviesContract.MoviesEntry.COLUMN_ID,
+            MoviesContract.MoviesEntry.COLUMN_ORIGINAL_TITLE,
+            MoviesContract.MoviesEntry.COLUMN_ORIGINAL_LANGUAGE,
+            MoviesContract.MoviesEntry.COLUMN_TITLE,
+            MoviesContract.MoviesEntry.COLUMN_BACKDROP_PATH,
+            MoviesContract.MoviesEntry.COLUMN_POPULARITY,
+            MoviesContract.MoviesEntry.COLUMN_VOTECOUNT,
+            MoviesContract.MoviesEntry.COLUMN_VIDEO,
+            MoviesContract.MoviesEntry.COLUMN_VOTE_AVERAGE};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,14 +93,14 @@ public class MoviesListActivity extends AppCompatActivity implements MoviesAdapt
         if(savedInstanceState == null || !savedInstanceState.containsKey(Movies.Result.PARCELABLE_KEY)){
             loadMoviesData(Sort.POPULAR);
         } else {
-            moviesData = savedInstanceState.getParcelable(Movies.Result.PARCELABLE_KEY);
+            moviesData = savedInstanceState.getParcelableArrayList(Movies.Result.PARCELABLE_KEY);
             mMoviesAdapter.setMovieList(moviesData);
         }
     }
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
-        outState.putParcelable(Movies.Result.PARCELABLE_KEY, moviesData);
+        outState.putParcelableArrayList(Movies.Result.PARCELABLE_KEY, new ArrayList<Parcelable>(moviesData));
         super.onSaveInstanceState(outState);
     }
 
@@ -86,8 +113,10 @@ public class MoviesListActivity extends AppCompatActivity implements MoviesAdapt
 
             if(sortBy == Sort.POPULAR){
                 processPopularMovies(service);
-            } else {
+            } else if (sortBy == Sort.TOP_RATED){
                 processTopRatedMovies(service);
+            } else {
+                processFavoriteMovies();
             }
         } else {
             showErrorMessage(getString(R.string.connection_error_message));
@@ -148,6 +177,12 @@ public class MoviesListActivity extends AppCompatActivity implements MoviesAdapt
             return true;
         }
 
+        if(itemId == R.id.sort_favorites){
+            mMoviesAdapter.setMovieList(null);
+            loadMoviesData(Sort.FAVORITES);
+            return true;
+        }
+
         return super.onOptionsItemSelected(item);
     }
 
@@ -162,7 +197,9 @@ public class MoviesListActivity extends AppCompatActivity implements MoviesAdapt
                 if(response != null){
                     showMoviesDataView();
 
-                    mMoviesAdapter.setMovieList(response.body());
+                    mMoviesAdapter.setMovieList(response.body().getResults());
+
+                    moviesData = response.body().getResults();
                 } else {
                     showErrorMessage(getString(R.string.error_message));
                 }
@@ -188,7 +225,9 @@ public class MoviesListActivity extends AppCompatActivity implements MoviesAdapt
                 if(response != null){
                     showMoviesDataView();
 
-                    mMoviesAdapter.setMovieList(response.body());
+                    mMoviesAdapter.setMovieList(response.body().getResults());
+
+                    moviesData = response.body().getResults();
                 } else {
                     showErrorMessage(getString(R.string.error_message));
                 }
@@ -200,5 +239,39 @@ public class MoviesListActivity extends AppCompatActivity implements MoviesAdapt
                 showErrorMessage(getString(R.string.error_message));
             }
         });
+    }
+
+    private void processFavoriteMovies() {
+        PopularMoviesQueryHandler popularMoviesQueryHandler = new PopularMoviesQueryHandler(getContentResolver());
+
+        List<Object> lista = new ArrayList<>();
+        lista.add(0, mMoviesAdapter);
+        lista.add(1, moviesData);
+
+        Cursor query = getContentResolver().query(MoviesContract.MoviesEntry.CONTENT_URI,
+                null,
+                null,
+                null,
+                null);
+
+        query.moveToFirst();
+
+        while (query.isAfterLast() == false){
+            DatabaseUtils.dumpCursor(query);
+//            Log.d("Test", query.getString(0));
+            query.moveToNext();
+        }
+
+//        popularMoviesQueryHandler.startQuery(PopularMoviesQueryHandler.ID_MOVIE_TOKEN_ALL,
+//                lista,
+//                MoviesContract.MoviesEntry.CONTENT_URI,
+//                projection,
+//                null,
+//                null,
+//                null);
+
+        mLoadingIndicator.setVisibility(View.INVISIBLE);
+
+        showMoviesDataView();
     }
 }

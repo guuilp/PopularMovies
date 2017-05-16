@@ -1,14 +1,22 @@
 
 package com.github.guuilp.popularmovies.model;
 
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.graphics.drawable.BitmapDrawable;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.widget.ImageView;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.github.guuilp.popularmovies.data.MoviesContract;
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
+
+import org.chalup.microorm.annotations.Column;
 
 public class Movies implements Parcelable {
 
@@ -95,7 +103,28 @@ public class Movies implements Parcelable {
 
     public static class Result implements Parcelable {
 
+        private Result(String posterPath, Boolean adult, String overview, String releaseDate, Integer id,
+                       String originalTitle, String originalLanguage, String title, String backdropPath,
+                       Double popularity, Integer voteCount, Boolean video, Double voteAverage){
+            this.posterPath = posterPath;
+            this.adult = adult;
+            this.overview = overview;
+            this.releaseDate = releaseDate;
+            this.id = id;
+            this.originalTitle = originalTitle;
+            this.originalLanguage = originalLanguage;
+            this.title = title;
+            this.backdropPath = backdropPath;
+            this.popularity = popularity;
+            this.voteCount = voteCount;
+            this.video = video;
+            this.voteAverage = voteAverage;
+        }
+
+
         public static final String PARCELABLE_KEY = "movie";
+
+        private String source;
 
         @SerializedName("poster_path")
         @Expose
@@ -152,6 +181,14 @@ public class Movies implements Parcelable {
         @SerializedName("vote_average")
         @Expose
         private Double voteAverage;
+
+        public String getSource(){
+            return source;
+        }
+
+        public void setSource(String source){
+            this.source = source;
+        }
 
         public String getPosterPath() {
             return posterPath;
@@ -318,6 +355,54 @@ public class Movies implements Parcelable {
             dest.writeInt(voteCount);
             dest.writeInt(video ? 1 : 0);
             dest.writeDouble(voteAverage);
+        }
+
+        public ContentValues getContentValues(ImageView poster, ImageView banner){
+            ContentValues cvMovies = new ContentValues();
+
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_POSTER_IMAGE, bitmapToByteArray(poster));
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_BACKDROP_IMAGE, bitmapToByteArray(banner));
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_POSTER_PATH, posterPath);
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ADULT, adult ? 1 : 0);
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_OVERVIEW, overview);
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_RELEASE_DATE, releaseDate);
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ID, id);
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ORIGINAL_TITLE, originalTitle);
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ORIGINAL_LANGUAGE, originalLanguage);
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_TITLE, title);
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_BACKDROP_PATH, backdropPath);
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_POPULARITY, popularity);
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_VOTECOUNT, voteCount);
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_VIDEO, video ? 1 : 0);
+            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_VOTE_AVERAGE, voteAverage);
+
+            return cvMovies;
+        }
+
+        public static Result fromCursor(Cursor c){
+            String posterPath = c.getString(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_POSTER_PATH));
+            Boolean adult = c.getInt(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_ADULT)) == 1;
+            String overview = c.getString(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_OVERVIEW));
+            String releaseDate = c.getString(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_RELEASE_DATE));
+            Integer id = c.getInt(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_ID));
+            String originalTitle = c.getString(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_ORIGINAL_TITLE));
+            String originalLanguage = c.getString(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_ORIGINAL_LANGUAGE));
+            String title = c.getString(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_TITLE));
+            String backdropPath = c.getString(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_BACKDROP_PATH));
+            Double popularity = c.getDouble(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_POPULARITY));
+            Integer voteCount = c.getInt(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_VOTECOUNT));
+            Boolean video = c.getInt(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_VIDEO)) == 1;
+            Double voteAverage = c.getDouble(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_VOTE_AVERAGE));
+
+            return new Movies.Result(posterPath, adult, overview, releaseDate, id, originalTitle, originalLanguage, title, backdropPath, popularity, voteCount, video, voteAverage);
+        }
+
+        private byte[] bitmapToByteArray(ImageView imageView) {
+            final int lnth = ((BitmapDrawable) imageView.getDrawable()).getBitmap().getByteCount();
+
+            ByteBuffer dst= ByteBuffer.allocate(lnth);
+            ((BitmapDrawable) imageView.getDrawable()).getBitmap().copyPixelsToBuffer( dst);
+            return dst.array();
         }
     }
 }

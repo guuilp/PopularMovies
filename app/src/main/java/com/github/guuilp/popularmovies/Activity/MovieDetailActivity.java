@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -36,6 +35,7 @@ import com.github.guuilp.popularmovies.model.Videos;
 import com.github.guuilp.popularmovies.service.TheMovieDBService;
 import com.github.guuilp.popularmovies.util.ImageSize;
 import com.github.guuilp.popularmovies.util.NetworkUtils;
+import com.github.guuilp.popularmovies.handler.PopularMoviesQueryHandler;
 import com.roughike.swipeselector.SwipeItem;
 import com.roughike.swipeselector.SwipeSelector;
 import com.squareup.picasso.Picasso;
@@ -48,7 +48,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class MovieDetailActivity extends AppCompatActivity {
+public class MovieDetailActivity extends AppCompatActivity{
 
     private static final String TAG = MovieDetailActivity.class.getSimpleName();
 
@@ -62,15 +62,14 @@ public class MovieDetailActivity extends AppCompatActivity {
     private TextView mReleaseDate;
     private ListView mTrailers;
     private SwipeSelector mReviews;
-    private Button mFavoritar;
-    private Button mBuscar;
-    private Menu mOptionsMenu;
 
     private List<Videos.Result> reducedVideosData = null;
     List<Reviews.Result> reviews = null;
 
     private String[] projection = {MoviesContract.MoviesEntry._ID};
 
+    //This object allows to work with content provider in a background task
+    PopularMoviesQueryHandler popularMoviesQueryHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,6 +79,8 @@ public class MovieDetailActivity extends AppCompatActivity {
 
         supportPostponeEnterTransition();
 
+        popularMoviesQueryHandler = new PopularMoviesQueryHandler(getContentResolver());
+
         mMoviePoster = (ImageView) findViewById(R.id.iv_movie_poster);
         mMovieBanner = (ImageView) findViewById(R.id.tv_movie_banner);
         mOriginalTitle = (TextView) findViewById(R.id.tv_movie_title);
@@ -88,13 +89,12 @@ public class MovieDetailActivity extends AppCompatActivity {
         mReleaseDate = (TextView) findViewById(R.id.tv_movie_release_date);
         mTrailers = (ListView) findViewById(R.id.lv_trailers);
         mReviews = (SwipeSelector) findViewById(R.id.ssReview);
-        mFavoritar = (Button) findViewById(R.id.btFavoritar);
-        mBuscar = (Button) findViewById(R.id.btBuscar);
 
         Bundle bundle = getIntent().getExtras();
 
         if (bundle != null){
             movie = bundle.getParcelable(Movies.Result.PARCELABLE_KEY);
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 String imageTransitionName = bundle.getString(MoviesListActivity.EXTRA_MOVIE_IMAGE_TRANSITION_NAME);
                 mMoviePoster.setTransitionName(imageTransitionName);
@@ -163,24 +163,6 @@ public class MovieDetailActivity extends AppCompatActivity {
 
         processReviews(service);
 
-        mFavoritar.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-            getContentResolver().insert(MoviesContract.MoviesEntry.CONTENT_URI, moviesToContentValue(movie));
-            getContentResolver().bulkInsert(VideosContract.VideosEntry.CONTENT_URI, videosToContentValue());
-            getContentResolver().bulkInsert(ReviewsContract.ReviewsEntry.CONTENT_URI, reviewsToContentValue());
-            }
-        });
-
-        mBuscar.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Cursor query = getContentResolver().query(MoviesContract.MoviesEntry.CONTENT_URI, null, null, null, MoviesContract.MoviesEntry.COLUMN_ID);
-                query.moveToFirst();
-                int idMovie = query.getInt(query.getColumnIndex(MoviesContract.MoviesEntry.COLUMN_ID));
-                Toast.makeText(MovieDetailActivity.this, idMovie+"", Toast.LENGTH_LONG).show();
-            }
-        });
     }
 
     @Override
@@ -189,12 +171,13 @@ public class MovieDetailActivity extends AppCompatActivity {
         inflater.inflate(R.menu.favorite_movie, menu);
         String[] selectionArgs = {movie.getId().toString()};
 
-        Uri uri = ContentUris.withAppendedId(MoviesContract.MoviesEntry.CONTENT_URI, movie.getId());
-
-        Cursor query = getContentResolver().query(uri, projection, null, selectionArgs, null);
-        if (query.getCount() > 0){
-            menu.findItem(R.id.action_favorite).setIcon(R.drawable.ic_favorite_pink_24px);
-        }
+        popularMoviesQueryHandler.startQuery(PopularMoviesQueryHandler.ID_MOVIE_TOKEN,
+                menu,
+                ContentUris.withAppendedId(MoviesContract.MoviesEntry.CONTENT_URI, movie.getId()),
+                projection,
+                null,
+                selectionArgs,
+                null);
 
         return true;
     }
@@ -205,18 +188,44 @@ public class MovieDetailActivity extends AppCompatActivity {
             case R.id.action_favorite:
 
                 if (item.getIcon().getConstantState().equals(ContextCompat.getDrawable(MovieDetailActivity.this, R.drawable.ic_favorite_pink_24px).getConstantState())){
-                    getContentResolver().delete(ContentUris.withAppendedId(MoviesContract.MoviesEntry.CONTENT_URI, movie.getId()), null, null);
-                    getContentResolver().delete(ContentUris.withAppendedId(VideosContract.VideosEntry.CONTENT_URI ,movie.getId()), null, null);
-                    getContentResolver().delete(ContentUris.withAppendedId(ReviewsContract.ReviewsEntry.CONTENT_URI, movie.getId()), null, null);
 
-                    item.setIcon(R.drawable.ic_favorite_white_24px);
+                    popularMoviesQueryHandler.startDelete(PopularMoviesQueryHandler.ID_MOVIE_TOKEN,
+                            item,
+                            ContentUris.withAppendedId(MoviesContract.MoviesEntry.CONTENT_URI, movie.getId()),
+                            null,
+                            null);
+
+                    popularMoviesQueryHandler.startDelete(PopularMoviesQueryHandler.ID_REVIEW_TOKEN,
+                            null,
+                            ContentUris.withAppendedId(ReviewsContract.ReviewsEntry.CONTENT_URI, movie.getId()),
+                            null,
+                            null);
+
+                    popularMoviesQueryHandler.startDelete(PopularMoviesQueryHandler.ID_VIDEO_TOKEN,
+                            null,
+                            ContentUris.withAppendedId(VideosContract.VideosEntry.CONTENT_URI, movie.getId()),
+                            null,
+                            null);
                 } else {
 
-                    getContentResolver().insert(MoviesContract.MoviesEntry.CONTENT_URI, moviesToContentValue(movie));
-                    getContentResolver().bulkInsert(VideosContract.VideosEntry.CONTENT_URI, videosToContentValue());
-                    getContentResolver().bulkInsert(ReviewsContract.ReviewsEntry.CONTENT_URI, reviewsToContentValue());
+                    popularMoviesQueryHandler.startInsert(PopularMoviesQueryHandler.ID_MOVIE_TOKEN,
+                            item,
+                            MoviesContract.MoviesEntry.CONTENT_URI,
+                            movie.getContentValues(mMoviePoster, mMovieBanner));
 
-                    item.setIcon(R.drawable.ic_favorite_pink_24px);
+                    for (ContentValues contentValue : videosToContentValue()) {
+                        popularMoviesQueryHandler.startInsert(PopularMoviesQueryHandler.ID_REVIEW_TOKEN,
+                                null,
+                                VideosContract.VideosEntry.CONTENT_URI,
+                                contentValue);
+                    }
+
+                    for(ContentValues contentValue : reviewsToContentValue()){
+                        popularMoviesQueryHandler.startInsert(PopularMoviesQueryHandler.ID_VIDEO_TOKEN,
+                                null,
+                                ReviewsContract.ReviewsEntry.CONTENT_URI,
+                                contentValue);
+                    }
                 }
 
                 return true;
@@ -311,28 +320,6 @@ public class MovieDetailActivity extends AppCompatActivity {
         });
     }
 
-    private ContentValues moviesToContentValue(Movies.Result movie){
-        ContentValues cvMovies = new ContentValues();
-
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_POSTER_IMAGE, bitmapToByteArray(mMoviePoster));
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_BACKDROP_IMAGE, bitmapToByteArray(mMovieBanner));
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_POSTER_PATH, movie.getPosterPath());
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ADULT, movie.getAdult() ? 1 : 0);
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_OVERVIEW, movie.getOverview());
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_RELEASE_DATE, movie.getReleaseDate());
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ID, movie.getId());
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ORIGINAL_TITLE, movie.getOriginalTitle());
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ORIGINAL_LANGUAGE, movie.getOriginalLanguage());
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_TITLE, movie.getTitle());
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_BACKDROP_PATH, movie.getBackdropPath());
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_POPULARITY, movie.getPopularity());
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_VOTECOUNT, movie.getVoteCount());
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_VIDEO, movie.getVideo() ? 1 : 0);
-        cvMovies.put(MoviesContract.MoviesEntry.COLUMN_VOTE_AVERAGE, movie.getVoteAverage());
-
-        return cvMovies;
-    }
-
     private ContentValues[] videosToContentValue(){
         ContentValues[] cvVideos = new ContentValues[reducedVideosData.size()];
 
@@ -376,11 +363,4 @@ public class MovieDetailActivity extends AppCompatActivity {
         return cvReviews;
     }
 
-    private byte[] bitmapToByteArray(ImageView imageView) {
-        final int lnth = ((BitmapDrawable) imageView.getDrawable()).getBitmap().getByteCount();
-
-        ByteBuffer dst= ByteBuffer.allocate(lnth);
-        ((BitmapDrawable) imageView.getDrawable()).getBitmap().copyPixelsToBuffer( dst);
-        return dst.array();
-    }
 }

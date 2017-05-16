@@ -1,6 +1,7 @@
 package com.github.guuilp.popularmovies.adapter;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.support.v4.view.ViewCompat;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -14,17 +15,22 @@ import com.github.guuilp.popularmovies.util.ImageSize;
 import com.github.guuilp.popularmovies.util.NetworkUtils;
 import com.squareup.picasso.Picasso;
 
+import org.chalup.microorm.MicroOrm;
+
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Created by Guilherme on 16/02/2017.
  */
-public class MoviesAdapter extends RecyclerView.Adapter<MoviesAdapter.MoviesViewHolder>{
+public class MoviesAdapter extends RecyclerView.Adapter<MoviesAdapter.MoviesViewHolder> {
 
     private final PopularMoviesOnClickHandler mClickHandler;
-    private Movies movieList;
+    private List<Movies.Result> movieList;
     private Context context;
     private static final String TAG = MoviesAdapter.class.getSimpleName();
 
-    public interface PopularMoviesOnClickHandler{
+    public interface PopularMoviesOnClickHandler {
         void onListItemClick(Movies.Result movie, ImageView shareImageView);
     }
 
@@ -46,7 +52,7 @@ public class MoviesAdapter extends RecyclerView.Adapter<MoviesAdapter.MoviesView
 
     @Override
     public void onBindViewHolder(MoviesViewHolder holder, int position) {
-        Movies.Result result = movieList.getResults().get(position);
+        Movies.Result result = movieList.get(position);
         String url = NetworkUtils.buildCoverUrl(ImageSize.SMALL.toString(), result.getPosterPath());
         Picasso.with(context).load(url).into(holder.ivCoverMovie);
 
@@ -55,15 +61,23 @@ public class MoviesAdapter extends RecyclerView.Adapter<MoviesAdapter.MoviesView
 
     @Override
     public int getItemCount() {
-        if(null == movieList) return 0;
-        if(null == movieList.getResults()) return 0;
-        return movieList.getResults().size();
+        if (null == movieList) return 0;
+        return movieList.size();
     }
 
-    public void setMovieList(Movies movieList) {
+    public void setMovieList(List<Movies.Result> movieList) {
         this.movieList = movieList;
         notifyDataSetChanged();
     }
+
+    public void setMovieListFromCursor(Cursor movieListCursor) {
+        MicroOrm uOrm = new MicroOrm();
+
+        this.movieList = uOrm.listFromCursor(movieListCursor, Movies.Result.class);
+
+        notifyDataSetChanged();
+    }
+
 
     public class MoviesViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
 
@@ -78,7 +92,7 @@ public class MoviesAdapter extends RecyclerView.Adapter<MoviesAdapter.MoviesView
         @Override
         public void onClick(View v) {
             int adapterPosition = getAdapterPosition();
-            Movies.Result result = movieList.getResults().get(adapterPosition);
+            Movies.Result result = movieList.get(adapterPosition);
             mClickHandler.onListItemClick(result, ivCoverMovie);
         }
     }
