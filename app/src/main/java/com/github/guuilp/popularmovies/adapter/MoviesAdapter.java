@@ -15,8 +15,6 @@ import com.github.guuilp.popularmovies.util.ImageSize;
 import com.github.guuilp.popularmovies.util.NetworkUtils;
 import com.squareup.picasso.Picasso;
 
-import org.chalup.microorm.MicroOrm;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -69,15 +67,6 @@ public class MoviesAdapter extends RecyclerView.Adapter<MoviesAdapter.MoviesView
         this.movieList = movieList;
         notifyDataSetChanged();
     }
-
-    public void setMovieListFromCursor(Cursor movieListCursor) {
-        MicroOrm uOrm = new MicroOrm();
-
-        this.movieList = uOrm.listFromCursor(movieListCursor, Movies.Result.class);
-
-        notifyDataSetChanged();
-    }
-
 
     public class MoviesViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
 

@@ -16,7 +16,6 @@ import com.github.guuilp.popularmovies.data.MoviesContract;
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
-import org.chalup.microorm.annotations.Column;
 
 public class Movies implements Parcelable {
 

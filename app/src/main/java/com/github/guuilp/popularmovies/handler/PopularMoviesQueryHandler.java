@@ -15,7 +15,6 @@ import com.github.guuilp.popularmovies.adapter.MoviesAdapter;
 import com.github.guuilp.popularmovies.data.VideosContract;
 import com.github.guuilp.popularmovies.model.Movies;
 
-import org.chalup.microorm.MicroOrm;
 
 import java.util.ArrayList;
 import java.util.List;
