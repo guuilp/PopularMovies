@@ -74,7 +74,7 @@ public class PopularMoviesProvider extends ContentProvider{
                         MoviesContract.MoviesEntry.TABLE_NAME,
                         projection,
                         MoviesContract.MoviesEntry.COLUMN_ID + " = ?",
-                        selectionArgs,
+                        new String[]{uri.getPathSegments().get(1)},
                         null,
                         null,
                         sortOrder);
@@ -98,7 +98,7 @@ public class PopularMoviesProvider extends ContentProvider{
                         VideosContract.VideosEntry.TABLE_NAME,
                         projection,
                         VideosContract.VideosEntry.COLUMN_MOVIE_ID + " = ?",
-                        selectionArgs,
+                        new String[]{uri.getPathSegments().get(1)},
                         null,
                         null,
                         sortOrder);
@@ -122,7 +122,7 @@ public class PopularMoviesProvider extends ContentProvider{
                         ReviewsContract.ReviewsEntry.TABLE_NAME,
                         projection,
                         ReviewsContract.ReviewsEntry.COLUMN_MOVIE_ID + " = ?",
-                        selectionArgs,
+                        new String[]{uri.getPathSegments().get(1)},
                         null,
                         null,
                         sortOrder);

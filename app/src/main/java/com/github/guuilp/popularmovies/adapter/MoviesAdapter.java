@@ -2,17 +2,22 @@ package com.github.guuilp.popularmovies.adapter;
 
 import android.content.Context;
 import android.database.Cursor;
+import android.net.Uri;
 import android.support.v4.view.ViewCompat;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
 
 import com.github.guuilp.popularmovies.model.Movies;
 import com.github.guuilp.popularmovies.R;
 import com.github.guuilp.popularmovies.util.ImageSize;
 import com.github.guuilp.popularmovies.util.NetworkUtils;
+import com.squareup.picasso.Callback;
+import com.squareup.picasso.NetworkPolicy;
 import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
@@ -49,10 +54,22 @@ public class MoviesAdapter extends RecyclerView.Adapter<MoviesAdapter.MoviesView
     }
 
     @Override
-    public void onBindViewHolder(MoviesViewHolder holder, int position) {
-        Movies.Result result = movieList.get(position);
-        String url = NetworkUtils.buildCoverUrl(ImageSize.SMALL.toString(), result.getPosterPath());
-        Picasso.with(context).load(url).into(holder.ivCoverMovie);
+    public void onBindViewHolder(final MoviesViewHolder holder, int position) {
+        final Movies.Result result = movieList.get(position);
+
+        final String url = NetworkUtils.buildCoverUrl(ImageSize.SMALL.toString(), result.getPosterPath());
+
+        if (NetworkUtils.isOnline(context)){
+            Picasso.with(context)
+                    .load(url)
+                    .networkPolicy(NetworkPolicy.NO_CACHE)
+                    .into(holder.ivCoverMovie);
+        } else {
+            Picasso.with(context)
+                    .load(url)
+                    .networkPolicy(NetworkPolicy.OFFLINE)
+                    .into(holder.ivCoverMovie);
+        }
 
         ViewCompat.setTransitionName(holder.ivCoverMovie, result.getTitle());
     }

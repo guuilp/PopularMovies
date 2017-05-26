@@ -5,11 +5,13 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.database.Cursor;
-import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.v4.app.LoaderManager;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.CursorLoader;
+import android.support.v4.content.Loader;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -17,7 +19,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -38,9 +39,9 @@ import com.github.guuilp.popularmovies.util.NetworkUtils;
 import com.github.guuilp.popularmovies.handler.PopularMoviesQueryHandler;
 import com.roughike.swipeselector.SwipeItem;
 import com.roughike.swipeselector.SwipeSelector;
+import com.squareup.picasso.NetworkPolicy;
 import com.squareup.picasso.Picasso;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,7 +49,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class MovieDetailActivity extends AppCompatActivity{
+public class MovieDetailActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor>{
 
     private static final String TAG = MovieDetailActivity.class.getSimpleName();
 
@@ -62,14 +63,17 @@ public class MovieDetailActivity extends AppCompatActivity{
     private TextView mReleaseDate;
     private ListView mTrailers;
     private SwipeSelector mReviews;
+    private MenuItem mMenuItem;
 
-    private List<Videos.Result> reducedVideosData = null;
+    private List<Videos.Result> reducedVideosData = new ArrayList<>();
     List<Reviews.Result> reviews = null;
-
-    private String[] projection = {MoviesContract.MoviesEntry._ID};
 
     //This object allows to work with content provider in a background task
     PopularMoviesQueryHandler popularMoviesQueryHandler;
+
+    private static final int ID_MOVIE_LOADER = 62;
+    private static final int ID_REVIEW_LOADER = 72;
+    private static final int ID_VIDEOS_LOADER = 82;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,11 +105,13 @@ public class MovieDetailActivity extends AppCompatActivity{
             }
         }
 
-        if(this.getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT){
-            String url = NetworkUtils.buildCoverUrl(ImageSize.DEFAULT.toString(), movie.getPosterPath());
+        final String urlPoster = NetworkUtils.buildCoverUrl(ImageSize.DEFAULT.toString(), movie.getPosterPath());
+        final String urlBackdrop = NetworkUtils.buildCoverUrl(ImageSize.A_LITTLE_BIGGER.toString(), movie.getBackdropPath());
 
+        if(NetworkUtils.isOnline(this)){
             Picasso.with(this)
-                    .load(url)
+                    .load(urlPoster)
+                    .networkPolicy(NetworkPolicy.NO_CACHE)
                     .noFade()
                     .into(mMoviePoster, new com.squareup.picasso.Callback() {
                         @Override
@@ -119,13 +125,14 @@ public class MovieDetailActivity extends AppCompatActivity{
                         }
                     });
 
-            url = NetworkUtils.buildCoverUrl(ImageSize.A_LITTLE_BIGGER.toString(), movie.getBackdropPath());
-            Picasso.with(this).load(url).into(mMovieBanner);
+            Picasso.with(this)
+                    .load(urlBackdrop)
+                    .networkPolicy(NetworkPolicy.NO_CACHE)
+                    .into(mMovieBanner);
         } else {
-            String url = NetworkUtils.buildCoverUrl(ImageSize.DEFAULT.toString(), movie.getPosterPath());
-
             Picasso.with(this)
-                    .load(url)
+                    .load(urlPoster)
+                    .networkPolicy(NetworkPolicy.OFFLINE)
                     .noFade()
                     .into(mMoviePoster, new com.squareup.picasso.Callback() {
                         @Override
@@ -137,21 +144,18 @@ public class MovieDetailActivity extends AppCompatActivity{
                         public void onError() {
                             supportStartPostponedEnterTransition();
                         }
-
                     });
 
-            url = NetworkUtils.buildCoverUrl(ImageSize.A_LITTLE_BIGGER.toString(), movie.getBackdropPath());
-            Picasso.with(this).load(url).into(mMovieBanner);
+            Picasso.with(this)
+                    .load(urlBackdrop)
+                    .networkPolicy(NetworkPolicy.OFFLINE)
+                    .into(mMovieBanner);
         }
 
         mOriginalTitle.setText(movie.getTitle());
         mPlotSynopsis.setText(movie.getOverview());
         mUserRating.setText(String.valueOf(movie.getVoteAverage()) + getString(R.string.total_rating_movie));
         mReleaseDate.setText(movie.getReleaseDate());
-
-        TheMovieDBService service = TheMovieDBService.retrofit.create(TheMovieDBService.class);
-
-        processVideos(service);
 
         mTrailers.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -161,23 +165,16 @@ public class MovieDetailActivity extends AppCompatActivity{
             }
         });
 
-        processReviews(service);
-
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.favorite_movie, menu);
-        String[] selectionArgs = {movie.getId().toString()};
 
-        popularMoviesQueryHandler.startQuery(PopularMoviesQueryHandler.ID_MOVIE_TOKEN,
-                menu,
-                ContentUris.withAppendedId(MoviesContract.MoviesEntry.CONTENT_URI, movie.getId()),
-                projection,
-                null,
-                selectionArgs,
-                null);
+        mMenuItem = menu.findItem(R.id.action_favorite);;
+
+        getSupportLoaderManager().initLoader(ID_MOVIE_LOADER, null, this);
 
         return true;
     }
@@ -298,7 +295,6 @@ public class MovieDetailActivity extends AppCompatActivity{
                 Videos videos = response.body();
 
                 if(videos != null) {
-                    reducedVideosData = new ArrayList<>();
 
                     if (videos.getResults().size() > 1) {
                         reducedVideosData.add(videos.getResults().get(0));
@@ -363,4 +359,94 @@ public class MovieDetailActivity extends AppCompatActivity{
         return cvReviews;
     }
 
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        switch(id){
+            case ID_MOVIE_LOADER:
+                return new CursorLoader(this,
+                        ContentUris.withAppendedId(MoviesContract.MoviesEntry.CONTENT_URI, movie.getId()),
+                        null,
+                        null,
+                        null,
+                        null);
+
+            case ID_VIDEOS_LOADER:
+                return new CursorLoader(this,
+                        ContentUris.withAppendedId(VideosContract.VideosEntry.CONTENT_URI, movie.getId()),
+                        null,
+                        null,
+                        null,
+                        null);
+
+            case ID_REVIEW_LOADER:
+                return new CursorLoader(this,
+                        ContentUris.withAppendedId(ReviewsContract.ReviewsEntry.CONTENT_URI, movie.getId()),
+                        null,
+                        null,
+                        null,
+                        null);
+            default:
+                throw new RuntimeException("Loader not implemented yet: " + id);
+        }
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
+        switch(loader.getId()){
+            case ID_MOVIE_LOADER:
+                if (data.getCount() > 0){
+                    mMenuItem.setIcon(R.drawable.ic_favorite_pink_24px);
+                    getSupportLoaderManager().initLoader(ID_REVIEW_LOADER, null, this);
+                    getSupportLoaderManager().initLoader(ID_VIDEOS_LOADER, null, this);
+                } else {
+                    TheMovieDBService service = TheMovieDBService.retrofit.create(TheMovieDBService.class);
+
+                    processVideos(service);
+
+                    processReviews(service);
+                }
+
+                break;
+            case ID_VIDEOS_LOADER:
+                try {
+                    mTrailers.setAdapter(null);
+                    reducedVideosData.clear();
+
+                    while (data.moveToNext()) {
+                        reducedVideosData.add(Videos.Result.fromCursor(data));
+
+                        VideoAdapter videoAdapter = new VideoAdapter(reducedVideosData, MovieDetailActivity.this);
+
+                        mTrailers.setAdapter(videoAdapter);
+                    }
+                } finally {
+                    data.close();
+                }
+
+                break;
+            case ID_REVIEW_LOADER:
+                try {
+                    if (data.getCount() > 0) {
+                        SwipeItem[] swipeItems = new SwipeItem[data.getCount()];
+
+                        while (data.moveToNext()) {
+                            swipeItems[data.getPosition()] = new SwipeItem(data.getPosition(), "Review " + (data.getPosition() + 1), data.getString(data.getColumnIndexOrThrow(ReviewsContract.ReviewsEntry.COLUMN_CONTENT)));
+                        }
+
+                        mReviews.setItems(swipeItems);
+                    }
+                } finally{
+                    data.close();
+                }
+
+                break;
+            default:
+                throw new RuntimeException("Loader not implemented yet: " + loader.getId());
+        }
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> loader) {
+
+    }
 }

@@ -35,45 +35,6 @@ public class PopularMoviesQueryHandler extends AsyncQueryHandler {
     }
 
     @Override
-    protected void onQueryComplete(int token, Object cookie, Cursor cursor) {
-
-        switch(token){
-            case ID_MOVIE_TOKEN:
-                if (cursor.getCount() > 0) {
-                    Menu menu = (Menu) cookie;
-                    menu.findItem(R.id.action_favorite).setIcon(R.drawable.ic_favorite_pink_24px);
-                }
-
-                break;
-            case ID_MOVIE_TOKEN_ALL:
-
-//                Log.d("Teste", DatabaseUtils.dumpCursorToString(cursor));
-//
-//                if(cursor.moveToFirst()){
-//
-//                    List<Object> lista = (List<Object>) cookie;
-//
-//                    MoviesAdapter moviesAdapter = (MoviesAdapter) lista.get(0);
-//
-//                    List<Movies.Result> moviesData = (List<Movies.Result>) lista.get(1);
-//
-//                    List<Movies.Result> moviesDataFromCursor = new ArrayList<>();
-//
-//                    do{
-//                        moviesDataFromCursor.add(Movies.Result.fromCursor(cursor));
-//                    }while (cursor.moveToNext());
-//                    moviesAdapter.setMovieList(moviesDataFromCursor);
-//
-//                    moviesData = moviesDataFromCursor;
-//                }
-//
-//                cursor.close();
-
-                break;
-        }
-    }
-
-    @Override
     protected void onInsertComplete(int token, Object cookie, Uri uri) {
         switch(token){
             case ID_MOVIE_TOKEN:

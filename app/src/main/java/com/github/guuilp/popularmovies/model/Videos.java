@@ -2,9 +2,14 @@
 package com.github.guuilp.popularmovies.model;
 
 import java.util.List;
+
+import android.database.Cursor;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.Parcelable.Creator;
+
+import com.github.guuilp.popularmovies.data.ReviewsContract;
+import com.github.guuilp.popularmovies.data.VideosContract;
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
@@ -97,7 +102,7 @@ public class Videos implements Parcelable{
 
             @SuppressWarnings({ "unchecked"})
             public Result createFromParcel(Parcel in) {
-                Result instance = new Result();
+                Result instance = new Result(in.readString(), in.readString(), in.readString(), in.readString(), in.readString(), in.readString(), in.readInt(), in.readString());
                 instance.id = ((String) in.readValue((String.class.getClassLoader())));
                 instance.iso6391 = ((String) in.readValue((String.class.getClassLoader())));
                 instance.iso31661 = ((String) in.readValue((String.class.getClassLoader())));
@@ -113,6 +118,17 @@ public class Videos implements Parcelable{
                 return (new Result[size]);
             }
         };
+
+        private Result(String id, String iso6391, String iso31661, String key, String name, String site, Integer size, String type) {
+            this.id = id;
+            this.iso6391 = iso6391;
+            this.iso31661 = iso31661;
+            this.key = key;
+            this.name = name;
+            this.site = site;
+            this.size = size;
+            this.type = type;
+        }
 
         public String getId() {
             return id;
@@ -191,6 +207,19 @@ public class Videos implements Parcelable{
 
         public int describeContents() {
             return  0;
+        }
+
+        public static Videos.Result fromCursor(Cursor c){
+            String id = c.getString(c.getColumnIndexOrThrow(VideosContract.VideosEntry.COLUMN_ID));
+            String iso6391 = c.getString(c.getColumnIndexOrThrow(VideosContract.VideosEntry.COLUMN_ISO6391));
+            String iso31661 = c.getString(c.getColumnIndexOrThrow(VideosContract.VideosEntry.COLUMN_ISO31661));
+            String key = c.getString(c.getColumnIndexOrThrow(VideosContract.VideosEntry.COLUMN_KEY));
+            String name = c.getString(c.getColumnIndexOrThrow(VideosContract.VideosEntry.COLUMN_NAME));
+            String site = c.getString(c.getColumnIndexOrThrow(VideosContract.VideosEntry.COLUMN_SITE));
+            Integer size = c.getInt(c.getColumnIndexOrThrow(VideosContract.VideosEntry.COLUMN_SIZE));
+            String type = c.getString(c.getColumnIndexOrThrow(VideosContract.VideosEntry.COLUMN_TYPE));
+
+            return new Videos.Result(id, iso6391, iso31661, key, name, site, size, type);
         }
     }
 }

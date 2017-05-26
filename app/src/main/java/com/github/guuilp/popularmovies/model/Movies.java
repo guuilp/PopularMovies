@@ -120,7 +120,6 @@ public class Movies implements Parcelable {
             this.voteAverage = voteAverage;
         }
 
-
         public static final String PARCELABLE_KEY = "movie";
 
         private String source;
@@ -359,8 +358,6 @@ public class Movies implements Parcelable {
         public ContentValues getContentValues(ImageView poster, ImageView banner){
             ContentValues cvMovies = new ContentValues();
 
-            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_POSTER_IMAGE, bitmapToByteArray(poster));
-            cvMovies.put(MoviesContract.MoviesEntry.COLUMN_BACKDROP_IMAGE, bitmapToByteArray(banner));
             cvMovies.put(MoviesContract.MoviesEntry.COLUMN_POSTER_PATH, posterPath);
             cvMovies.put(MoviesContract.MoviesEntry.COLUMN_ADULT, adult ? 1 : 0);
             cvMovies.put(MoviesContract.MoviesEntry.COLUMN_OVERVIEW, overview);
@@ -394,14 +391,6 @@ public class Movies implements Parcelable {
             Double voteAverage = c.getDouble(c.getColumnIndexOrThrow(MoviesContract.MoviesEntry.COLUMN_VOTE_AVERAGE));
 
             return new Movies.Result(posterPath, adult, overview, releaseDate, id, originalTitle, originalLanguage, title, backdropPath, popularity, voteCount, video, voteAverage);
-        }
-
-        private byte[] bitmapToByteArray(ImageView imageView) {
-            final int lnth = ((BitmapDrawable) imageView.getDrawable()).getBitmap().getByteCount();
-
-            ByteBuffer dst= ByteBuffer.allocate(lnth);
-            ((BitmapDrawable) imageView.getDrawable()).getBitmap().copyPixelsToBuffer( dst);
-            return dst.array();
         }
     }
 }

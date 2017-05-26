@@ -13,12 +13,10 @@ import com.github.guuilp.popularmovies.data.VideosContract.*;
 public class PopularMoviesDbHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "popularmovies.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
 
     private static final String SQL_CREATE_MOVIES_TABLE = "CREATE TABLE " + MoviesEntry.TABLE_NAME + " (" +
             MoviesEntry._ID                      + " INTEGER PRIMARY KEY AUTOINCREMENT," +
-            MoviesEntry.COLUMN_POSTER_IMAGE      + " BLOB NOT NULL,"                     +
-            MoviesEntry.COLUMN_BACKDROP_IMAGE    + " BLOB NOT NULL,"                     +
             MoviesEntry.COLUMN_POSTER_PATH       + " TEXT NOT NULL,"                     +
             MoviesEntry.COLUMN_ADULT             + " INTEGER NOT NULL,"                  +
             MoviesEntry.COLUMN_OVERVIEW          + " TEXT NOT NULL,"                     +

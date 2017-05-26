@@ -1,15 +1,9 @@
 package com.github.guuilp.popularmovies.util;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
-
-import com.github.guuilp.popularmovies.BuildConfig;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Scanner;
 
 /**
  * Created by Guilherme on 16/02/2017.
@@ -27,5 +21,12 @@ public final class NetworkUtils {
                 .build();
 
         return builtUri.toString();
+    }
+
+    //Got this method here: http://stackoverflow.com/a/4009133/3394588
+    public static boolean isOnline(Context context){
+        ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        return netInfo != null && netInfo.isConnectedOrConnecting();
     }
 }

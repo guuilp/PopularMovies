@@ -2,9 +2,14 @@
 package com.github.guuilp.popularmovies.model;
 
 import java.util.List;
+
+import android.database.Cursor;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.Parcelable.Creator;
+
+import com.github.guuilp.popularmovies.data.MoviesContract;
+import com.github.guuilp.popularmovies.data.ReviewsContract;
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
@@ -100,6 +105,13 @@ public class Reviews implements Parcelable{
 
         public static final String PARCELABLE_KEY = "review";
 
+        private Result(String id, String author, String content, String url){
+            this.id = id;
+            this.author = author;
+            this.content = content;
+            this.url = url;
+        }
+
         @SerializedName("id")
         @Expose
         private String id;
@@ -120,7 +132,7 @@ public class Reviews implements Parcelable{
 
             @SuppressWarnings({"unchecked"})
             public Result createFromParcel(Parcel in) {
-                Result instance = new Result();
+                Result instance = new Result(in.readString(), in.readString(), in.readString(), in.readString());
                 instance.id = ((String) in.readValue((String.class.getClassLoader())));
                 instance.author = ((String) in.readValue((String.class.getClassLoader())));
                 instance.content = ((String) in.readValue((String.class.getClassLoader())));
@@ -174,6 +186,15 @@ public class Reviews implements Parcelable{
 
         public int describeContents() {
             return  0;
+        }
+
+        public static Reviews.Result fromCursor(Cursor c){
+            String id = c.getString(c.getColumnIndexOrThrow(ReviewsContract.ReviewsEntry.COLUMN_ID));
+            String author = c.getString(c.getColumnIndexOrThrow(ReviewsContract.ReviewsEntry.COLUMN_AUTHOR));
+            String content = c.getString(c.getColumnIndexOrThrow(ReviewsContract.ReviewsEntry.COLUMN_CONTENT));
+            String url = c.getString(c.getColumnIndexOrThrow(ReviewsContract.ReviewsEntry.COLUMN_URL));
+
+            return new Reviews.Result(id, author, content, url);
         }
     }
 }
