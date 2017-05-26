@@ -22,6 +22,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <activity
             android:name=".activity.MovieDetailActivity"
             android:parentActivityName=".activity.MoviesListActivity">
@@ -29,6 +30,11 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".activity.MoviesListActivity" />
         </activity>
+
+        <provider
+            android:name=".data.PopularMoviesProvider"
+            android:authorities="@string/content_authority"
+            android:exported="false"/>
     </application>
 
 </manifest>

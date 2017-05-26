@@ -6,7 +6,8 @@ package com.github.guuilp.popularmovies.util;
 
 public enum Sort {
     POPULAR ("Popular"),
-    TOP_RATED ("Top Rated");
+    TOP_RATED ("Top Rated"),
+    FAVORITES ("Favorites");
 
     private final String code;
 
